@@ -53,18 +53,11 @@ class PHQ9Evaluator
   end
 
   def acuity
-    case score
-    when 0..4
-      'none'
-    when 5..9
-      'mild'
-    when 10..14
-      'moderate'
-    when 15..19
-      'moderately severe'
-    when 20..27
-      'severe'
-    end
+    return 'none' if score < 5
+    return 'mild' if score < 10
+    return 'moderate' if score < 15
+    return 'moderately severe' if score < 20
+    'severe'
   end
 
   def suic_ideation_score
