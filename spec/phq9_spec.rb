@@ -2,13 +2,14 @@ require_relative '../phq9'
 require 'spec_helper'
 
 RSpec.describe PHQ9Evaluator do
-  empty, inc, valid, wrong, excess =
+  empty, inc, valid, wrong, excess, none, mild =
     {}, { q1: 2, q3: 3, q5: 0 },
     { q1: 2, q2: 0, q3: 3, q4: 2, q5: 0, q6: 2, q7: 1, q8: 0, q9: 2, q10: 2 },
     { q1: 2, q2: 0, q3: 3, q4: 2, q5: 0, q6: 2, q7: 4, q8: 0, q9: 2, q10: 2 },
-    { q1: 2, q2: 0, q3: 3, q4: 2, q5: 0, q6: 2, q7: 4, q8: 0, q9: 2, q10: 2 },
     { q1: 2, q2: 0, q3: 3, q4: 2, q5: 0, q6: 2, q7: 1, q8: 0, q9: 2, q10: 2,
-      q11: 2 }
+      q11: 2 },
+    { q1: 0, q2: 1, q3: 0, q4: 1, q5: 0, q6: 0, q7: 1, q8: 0, q9: 0, q10: 1 },
+    { q1: 1, q2: 1, q3: 1, q4: 1, q5: 1, q6: 0, q7: 1, q8: 0, q9: 0, q10: 1 }
 
   before(:each) do
     @empty_evaluator = PHQ9Evaluator.new(empty)
@@ -16,6 +17,8 @@ RSpec.describe PHQ9Evaluator do
     @valid_evaluator = PHQ9Evaluator.new(valid)
     @wrong_evaluator = PHQ9Evaluator.new(wrong)
     @excess_evaluator = PHQ9Evaluator.new(excess)
+    @none_evaluator = PHQ9Evaluator.new(none)
+    @mild_evaluator = PHQ9Evaluator.new(mild)
   end
   it 'is invalid if it receives an empty hash' do
     expect(@empty_evaluator.valid?).to be_falsey
@@ -45,17 +48,24 @@ RSpec.describe PHQ9Evaluator do
     expect(@valid_evaluator.score).to eq(12)
   end
 
-  it 'returns an empty array for errors if valid? has never been called' do
-    expect(@inc_evaluator.errors).to eq({})
-  end
-
-  it 'returns empty array for errors on a valid array after calling valid?' do
-    @valid_evaluator.valid?
-    expect(@valid_evaluator.errors).to eq({})
+  it 'returns empty array for errors on a valid array' do
+    expect(@valid_evaluator.errors.messages).to eq({})
   end
 
   it 'returns array for errors if valid called on invalid array' do
     @inc_evaluator.valid?
-    expect(@inc_evaluator.errors[:q10]).to eq(['That response does not exist'])
+    expect(@inc_evaluator.errors.messages[:q10]).to eq(['not answered'])
+  end
+
+  it 'returns none acuity for a response set with no depression' do
+    expect(@none_evaluator.acuity).to eq('none')
+  end
+
+  it 'returns mild acuity for a response set with mild depression' do
+    expect(@mild_evaluator.acuity).to eq('mild')
+  end
+
+  it 'returns a suicidal ideation score' do
+    expect(@valid_evaluator.suic_ideation_score).to eq(2)
   end
 end
