@@ -53,7 +53,6 @@ class PHQ9Evaluator
   end
 
   def acuity
-    puts score
     case score
     when 0..4
       'none'
@@ -66,5 +65,17 @@ class PHQ9Evaluator
     when 20..27
       'severe'
     end
+  end
+
+  def suic_ideation_score
+    responses[:q9]
+  end
+
+  def phq2_positive?
+    responses[:q1] + responses[:q2] >= 3
+  end
+
+  def step1?
+    responses[:q1] > 1 || responses[:q2] > 1
   end
 end

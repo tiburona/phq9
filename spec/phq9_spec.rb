@@ -4,12 +4,12 @@ require 'spec_helper'
 RSpec.describe PHQ9Evaluator do
   empty, inc, valid, wrong, excess, none, mild =
     {}, { q1: 2, q3: 3, q5: 0 },
-    { q1: 2, q2: 0, q3: 3, q4: 2, q5: 0, q6: 2, q7: 1, q8: 0, q9: 2, q10: 2 },
-    { q1: 2, q2: 0, q3: 3, q4: 2, q5: 0, q6: 2, q7: 4, q8: 0, q9: 2, q10: 2 },
+    { q1: 2, q2: 2, q3: 3, q4: 2, q5: 0, q6: 2, q7: 1, q8: 0, q9: 2, q10: 2 },
+    { q1: 2, q2: 2, q3: 3, q4: 2, q5: 0, q6: 2, q7: 4, q8: 0, q9: 2, q10: 2 },
     { q1: 2, q2: 0, q3: 3, q4: 2, q5: 0, q6: 2, q7: 1, q8: 0, q9: 2, q10: 2,
       q11: 2 },
     { q1: 0, q2: 1, q3: 0, q4: 1, q5: 0, q6: 0, q7: 1, q8: 0, q9: 0, q10: 1 },
-    { q1: 1, q2: 1, q3: 1, q4: 1, q5: 1, q6: 0, q7: 1, q8: 0, q9: 0, q10: 1 }
+    { q1: 1, q2: 2, q3: 1, q4: 1, q5: 1, q6: 0, q7: 1, q8: 0, q9: 0, q10: 1 }
 
   before(:each) do
     @empty_evaluator = PHQ9Evaluator.new(empty)
@@ -45,7 +45,7 @@ RSpec.describe PHQ9Evaluator do
   end
 
   it 'returns the score for valid responses' do
-    expect(@valid_evaluator.score).to eq(12)
+    expect(@valid_evaluator.score).to eq(14)
   end
 
   it 'returns empty array for errors on a valid array' do
@@ -67,5 +67,17 @@ RSpec.describe PHQ9Evaluator do
 
   it 'returns a suicidal ideation score' do
     expect(@valid_evaluator.suic_ideation_score).to eq(2)
+  end
+
+  it 'returns true when phq2 is positive' do
+    expect(@valid_evaluator.phq2_positive?).to be_truthy
+  end
+
+  it 'returns false when phq2 is not positive' do
+    expect(@none_evaluator.phq2_positive?).to be_falsey
+  end
+
+  it 'returns true when step1 is true' do
+    expect(@mild_evaluator.step1?).to be_truthy
   end
 end
