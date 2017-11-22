@@ -29,7 +29,7 @@ RSpec.describe PHQ9Evaluator do
   let(:mod_severe_evaluator) { PHQ9Evaluator.new(mod_severe) }
   let(:severe_evaluator) { PHQ9Evaluator.new(severe) }
 
-  describe 'valid?' do
+  describe 'validations' do
     it 'receives an empty hash' do
       expect(empty_evaluator.valid?).to be_falsey
     end
@@ -49,16 +49,14 @@ RSpec.describe PHQ9Evaluator do
     it 'receives a disallowed key' do
       expect(excess_evaluator.valid?).to be_falsey
     end
-  end
 
-  describe 'errors' do
     it 'has valid responses' do
       expect(valid_evaluator.errors.messages).to eq({})
     end
 
     it 'has invalid responses' do
       inc_evaluator.valid?
-      expect(inc_evaluator.errors.messages[:q10]).to eq(['not answered'])
+      expect(inc_evaluator.errors.messages[:q10]).to eq(['response not found'])
     end
   end
 

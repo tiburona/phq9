@@ -3,38 +3,40 @@ require 'active_model'
 # a class to validate responses to the PHQ-9
 class ResponseValidator < ActiveModel::Validator
   def validate(record)
+    required_responses_validation(record)
+    permitted_responses_validation(record)
     validate_responses(record)
-    validate_keys(record)
+  end
+
+  def required_responses_validation(record)
+    required_responses = record.validation_schema[:required_responses]
+    required_responses && required_responses.each do |key|
+      populate_error(record, key, 'response not found') unless
+      record.responses[key]
+    end
+  end
+
+  def permitted_responses_validation(record)
+    permitted_responses = record.validation_schema[:permitted_responses]
+    permitted_responses && record.responses.each_key do |key|
+      populate_error(record, key, 'invalid key') unless
+      permitted_responses.include? key
+    end
   end
 
   def validate_responses(record)
-    %i[q1 q2 q3 q4 q5 q6 q7 q8 q9 q10].each do |key|
-      answer = record.responses[key]
-      populate_error(record, key, 'not answered') unless answer
-      populate_error(record, key, 'wrong type') unless !answer ||
-                                                       type_valid?(answer)
-      populate_error(record, key, 'out of range') unless !answer ||
-                                                         range_valid?(answer)
+    response_validations = record.validation_schema[:response_validations]
+    responses = record.responses
+    response_validations && response_validations.each do |key, validations|
+      validations.each do |v|
+        populate_error(record, key, v[:msg]) unless
+        !responses[key] || v[:validation].call(responses[key])
+      end
     end
   end
 
   def populate_error(record, key, message)
     record.errors[key] << message
-  end
-
-  def validate_keys(record)
-    record.responses.each_key do |key|
-      populate_error(record, key, 'invalid key') unless
-      %i[q1 q2 q3 q4 q5 q6 q7 q8 q9 q10].include? key
-    end
-  end
-
-  def range_valid?(ans)
-    ans && (ans >= 0) && (ans <= 3)
-  end
-
-  def type_valid?(ans)
-    ans.is_a? Integer if ans
   end
 end
 
@@ -46,6 +48,31 @@ class PHQ9Evaluator
 
   def initialize(responses)
     @responses = responses
+  end
+
+  def validation_schema
+    schema = { required_responses: required_keys,
+               permitted_responses: permitted_keys,
+               response_validations: {} }
+    permitted_keys.each do |key|
+      schema[:response_validations][key] = response_validations
+    end
+    schema
+  end
+
+  def permitted_keys
+    %i[q1 q2 q3 q4 q5 q6 q7 q8 q9 q10]
+  end
+
+  def required_keys
+    %i[q1 q2 q3 q4 q5 q6 q7 q8 q9 q10]
+  end
+
+  def response_validations
+    [
+      { validation: proc { |ans| ans.is_a? Integer }, msg: 'type error' },
+      { validation: proc { |ans| ans >= 0 && ans <= 3 }, msg: 'range error' }
+    ]
   end
 
   # why are this method and the next "self.method" in the original model?
