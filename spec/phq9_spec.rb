@@ -6,8 +6,10 @@ RSpec.describe PHQ9Evaluator do
   inc = { q1: 2, q3: 3, q5: 0 }
   valid = { q1: 2, q2: 2, q3: 3, q4: 2, q5: 0, q6: 2, q7: 1, q8: 0, q9: 2,
             q10: 2 }
-  wrong = { q1: 2, q2: 2, q3: 3, q4: 2, q5: 0, q6: 2, q7: 4, q8: 0, q9: 2,
+  wrong_range = { q1: 2, q2: 2, q3: 3, q4: 2, q5: 0, q6: 2, q7: 4, q8: 0, q9: 2,
             q10: 2 }
+  wrong_type = { q1: 2, q2: 2, q3: 'hello', q4: 2, q5: 0, q6: 2, q7: 4, q8: 0, q9: 2,
+                 q10: 2 }
   excess = { q1: 2, q2: 0, q3: 3, q4: 2, q5: 0, q6: 2, q7: 1, q8: 0, q9: 2,
              q10: 2, q11: 2 }
   none = { q1: 0, q2: 1, q3: 0, q4: 1, q5: 0, q6: 0, q7: 1, q8: 0, q9: 0,
@@ -22,7 +24,8 @@ RSpec.describe PHQ9Evaluator do
   let(:empty_evaluator) { PHQ9Evaluator.new(empty) }
   let(:inc_evaluator) { PHQ9Evaluator.new(inc) }
   let(:valid_evaluator) { PHQ9Evaluator.new(valid) }
-  let(:wrong_evaluator) { PHQ9Evaluator.new(wrong) }
+  let(:wrong_range_evaluator) { PHQ9Evaluator.new(wrong_range) }
+  let(:wrong_type_evaluator) { PHQ9Evaluator.new(wrong_type) }
   let(:excess_evaluator) { PHQ9Evaluator.new(excess) }
   let(:none_evaluator) { PHQ9Evaluator.new(none) }
   let(:mild_evaluator) { PHQ9Evaluator.new(mild) }
@@ -36,27 +39,27 @@ RSpec.describe PHQ9Evaluator do
 
     it 'receives an incomplete hash' do
       expect(inc_evaluator.valid?).to be_falsey
+      expect(inc_evaluator.errors.messages[:q10]).to eq(['response not found'])
     end
 
-    it 'receives a complete hash' do
+    it 'receives valid responses' do
       expect(valid_evaluator.valid?).to be_truthy
+      expect(valid_evaluator.errors.messages).to eq({})
     end
 
     it 'has a value outside the expected range' do
-      expect(wrong_evaluator.valid?).to be_falsey
+      expect(wrong_range_evaluator.valid?).to be_falsey
+      expect(wrong_range_evaluator.errors[:q7]).to eq(['range error'])
     end
 
     it 'receives a disallowed key' do
       expect(excess_evaluator.valid?).to be_falsey
+      expect(excess_evaluator.errors[:q11]).to eq(['invalid key'])
     end
 
-    it 'has valid responses' do
-      expect(valid_evaluator.errors.messages).to eq({})
-    end
-
-    it 'has invalid responses' do
-      inc_evaluator.valid?
-      expect(inc_evaluator.errors.messages[:q10]).to eq(['response not found'])
+    it 'receives a value of the wrong type' do
+      expect(wrong_type_evaluator.valid?).to be_falsey
+      expect(wrong_type_evaluator.errors[:q7]).to eq(['type error'])
     end
   end
 

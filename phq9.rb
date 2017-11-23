@@ -30,8 +30,11 @@ class PHQ9Evaluator
 
   def response_validations
     [
-      { validation: proc { |ans| ans.is_a? Integer }, msg: 'type error' },
-      { validation: proc { |ans| ans >= 0 && ans <= 3 }, msg: 'range error' }
+      { name: :type_validation, validation: proc { |ans| ans.is_a? Integer },
+        msg: 'type error' },
+      { name: :range_validation,
+        validation: proc { |ans| ans >= 0 && ans <= 3 },
+        msg: 'range error' }
     ]
   end
 
