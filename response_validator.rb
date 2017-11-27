@@ -10,10 +10,11 @@ class ResponseValidator < ActiveModel::Validator
 
   def required_validation(record)
     required_responses = record.validation_schema[:required_responses]
-    required_responses && required_responses.each do |key|
-      populate_error(record, key, 'response not found') unless
-      record.responses[key]
-    end
+    record.status == :submitted &&
+      required_responses && required_responses.each do |key|
+        populate_error(record, key, 'response not found') unless
+        record.responses[key]
+      end
   end
 
   def permitted_validation(record)

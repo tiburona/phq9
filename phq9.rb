@@ -4,10 +4,17 @@ require_relative 'response_validator'
 class PHQ9Evaluator
   include ActiveModel::Validations
   attr_reader :responses
+  attr_reader :status
   validates_with ResponseValidator
+  # class should init with pending or submitting
+  # pending or submitted
+  # validation different depending on status
+  # every method which calcs a score should throw error_exists
+  # raise if not valid for final score methods
 
-  def initialize(responses)
+  def initialize(responses, status)
     @responses = responses
+    @status = status
   end
 
   def validation_schema
@@ -54,12 +61,14 @@ class PHQ9Evaluator
   end
 
   def score_phq9
+    raise 'response is still pending' unless status == :submitted
     responses.values.reduce(:+) - responses[:q10]
   end
 
   # note: AFAICT this is only being used in a haml screenings page
   # is this something we're currently using ?
   def score_phq2
+    raise 'response is still pending' unless status == :submitted
     responses[:q1] + responses[:q2]
   end
 
