@@ -7,9 +7,9 @@ RSpec.describe PHQ9Evaluator do
   valid = { q1: 2, q2: 2, q3: 3, q4: 2, q5: 0, q6: 2, q7: 1, q8: 0, q9: 2,
             q10: 2 }
   wrong_range = { q1: 2, q2: 2, q3: 3, q4: 2, q5: 0, q6: 2, q7: 4, q8: 0, q9: 2,
-            q10: 2 }
-  wrong_type = { q1: 2, q2: 2, q3: 'hello', q4: 2, q5: 0, q6: 2, q7: 4, q8: 0, q9: 2,
-                 q10: 2 }
+                  q10: 2 }
+  wrong_type = { q1: 2, q2: 2, q3: 'hello', q4: 2, q5: 0, q6: 2, q7: 3, q8: 0,
+                 q9: 2, q10: 2 }
   excess = { q1: 2, q2: 0, q3: 3, q4: 2, q5: 0, q6: 2, q7: 1, q8: 0, q9: 2,
              q10: 2, q11: 2 }
   none = { q1: 0, q2: 1, q3: 0, q4: 1, q5: 0, q6: 0, q7: 1, q8: 0, q9: 0,
@@ -44,7 +44,10 @@ RSpec.describe PHQ9Evaluator do
 
     it 'receives valid responses' do
       expect(valid_evaluator.valid?).to be_truthy
-      expect(valid_evaluator.errors.messages).to eq({})
+      expect(valid_evaluator.errors.messages).to eq(q1: [], q2: [], q3: [],
+                                                    q4: [], q5: [], q6: [],
+                                                    q7: [], q8: [], q9: [],
+                                                    q10: [])
     end
 
     it 'has a value outside the expected range' do
@@ -59,7 +62,7 @@ RSpec.describe PHQ9Evaluator do
 
     it 'receives a value of the wrong type' do
       expect(wrong_type_evaluator.valid?).to be_falsey
-      expect(wrong_type_evaluator.errors[:q7]).to eq(['type error'])
+      expect(wrong_type_evaluator.errors[:q3]).to eq(['type error'])
     end
   end
 

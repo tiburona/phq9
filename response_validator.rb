@@ -35,9 +35,8 @@ class ResponseValidator < ActiveModel::Validator
 
   def validate_responses(record, key, validation)
     populate_error(record, key, validation[:msg]) unless
-    !record.responses[key] ||
-    validation[:validation].call(record.responses[key]) ||
-    error_exists(record, key)
+    !record.responses[key] || error_exists(record, key) ||
+    validation[:validation].call(record.responses[key])
   end
 
   def error_exists(record, key)
