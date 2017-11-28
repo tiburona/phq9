@@ -3,46 +3,27 @@ require_relative 'response_validator'
 # a class to evaluate responses to the PHQ-9
 class PHQ9Evaluator
   include ActiveModel::Validations
-  attr_reader :responses
-  attr_reader :status
+  attr_reader :status, :responses, :q1, :q2, :q3, :q4, :q5, :q6, :q7, :q8, :q9,
+              :q10
   validates_with ResponseValidator
-  # class should init with pending or submitting
-  # pending or submitted
-  # validation different depending on status
-  # every method which calcs a score should throw error_exists
-  # raise if not valid for final score methods
+  validates :q1, :q2, :q3, :q4, :q5, :q6, :q7, :q8, :q9, :q10,
+            presence: { unless: :pending? }
+  validates :q1, :q2, :q3, :q4, :q5, :q6, :q7, :q8, :q9, :q10,
+            inclusion: { in: 0..3, unless: :pending? }
+  validates :q1, :q2, :q3, :q4, :q5, :q6, :q7, :q8, :q9, :q10,
+            inclusion: { in: [0, 1, 2, 3, nil], if: :pending? }
 
   def initialize(responses, status)
     @responses = responses
+    responses.each do |key, val|
+      var_name = "@#{key}"
+      instance_variable_set(var_name, val)
+    end
     @status = status
   end
 
-  def validation_schema
-    schema = { required_responses: required_keys,
-               permitted_responses: permitted_keys,
-               response_validations: {} }
-    permitted_keys.each do |key|
-      schema[:response_validations][key] = response_validations
-    end
-    schema
-  end
-
-  def permitted_keys
-    %i[q1 q2 q3 q4 q5 q6 q7 q8 q9 q10]
-  end
-
-  def required_keys
-    %i[q1 q2 q3 q4 q5 q6 q7 q8 q9 q10]
-  end
-
-  def response_validations
-    [
-      { name: :type_validation, validation: proc { |ans| ans.is_a? Integer },
-        msg: 'type error' },
-      { name: :range_validation,
-        validation: proc { |ans| ans >= 0 && ans <= 3 },
-        msg: 'range error' }
-    ]
+  def pending?
+    @status == :pending
   end
 
   # why are this method and the next "self.method" in the original model?
@@ -61,23 +42,26 @@ class PHQ9Evaluator
   end
 
   def score_phq9
-    raise 'response is still pending' unless status == :submitted
+    raise_unless_submitted_and_valid!
     responses.values.reduce(:+) - responses[:q10]
   end
 
   # note: AFAICT this is only being used in a haml screenings page
   # is this something we're currently using ?
+
   def score_phq2
-    raise 'response is still pending' unless status == :submitted
+    raise_unless_submitted_and_valid!
     responses[:q1] + responses[:q2]
   end
 
   def score
+    raise_unless_submitted_and_valid!
     return score_phq9 unless phq2? && !enforce_phq9?
     score_phq2
   end
 
   def acuity
+    raise_unless_submitted_and_valid!
     return 'none' if score_phq9 < 5
     return 'mild' if score_phq9 < 10
     return 'moderate' if score_phq9 < 15
@@ -86,6 +70,7 @@ class PHQ9Evaluator
   end
 
   def suic_ideation_score
+    raise_unless_valid_keys!
     responses[:q9]
   end
 
@@ -96,6 +81,7 @@ class PHQ9Evaluator
   def phq2?; end
 
   def phq2_positive?
+    raise_unless_valid_keys!
     responses[:q1] + responses[:q2] >= 3
   end
 
@@ -140,5 +126,22 @@ class PHQ9Evaluator
       return %i[q1 q2 q3 q4 q5 q6 q7 q8 q9 q10].map { |q| responses[q] }
     end
     %i[q1 q2].map { |q| responses[q] }
+  end
+
+  private
+
+  def raise_unless_valid!
+    raise 'invalid' unless valid?
+  end
+
+  def raise_unless_submitted_and_valid!
+    raise 'invalid or pending responses' unless status == :submitted && valid?
+  end
+
+  def raise_unless_valid_keys!(keys)
+    keys.each do |key|
+      raise 'invalid key' unless [0, 1, 2, 3].include? @responses[key]
+    end
+    raise 'invalid responses' unless valid?
   end
 end

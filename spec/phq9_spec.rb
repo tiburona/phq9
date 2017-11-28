@@ -3,6 +3,7 @@ require 'spec_helper'
 
 RSpec.describe PHQ9Evaluator do
   empty = {}
+  inc = { q1: 2, q3: 3, q5: 0, q9: 2 }
   inc = { q1: 2, q3: 3, q5: 0 }
   valid = { q1: 2, q2: 2, q3: 3, q4: 2, q5: 0, q6: 2, q7: 1, q8: 0, q9: 2,
             q10: 2 }
@@ -28,6 +29,7 @@ RSpec.describe PHQ9Evaluator do
   let(:empty_pen_evaluator) { PHQ9Evaluator.new(empty, :pending) }
   let(:inc_sub_evaluator) { PHQ9Evaluator.new(inc, :submitted) }
   let(:inc_pen_evaluator) { PHQ9Evaluator.new(inc, :pending) }
+  let(:inc_pen_noq9_evaluator) { PHQ9Evaluator.new(inc_noq9, :pending) }
   let(:valid_sub_evaluator) { PHQ9Evaluator.new(valid, :submitted) }
   let(:valid_pen_evaluator) { PHQ9Evaluator.new(valid, :pending) }
   let(:wrong_range_sub_evaluator) do
@@ -60,29 +62,30 @@ RSpec.describe PHQ9Evaluator do
       it 'receives an incomplete hash' do
         expect(inc_sub_evaluator.valid?).to be_falsey
         expect(inc_sub_evaluator.errors.messages[:q10])
-          .to eq(['response not found'])
+          .to eq(["can't be blank", 'is not included in the list'])
       end
 
       it 'receives valid responses' do
         expect(valid_sub_evaluator.valid?).to be_truthy
         expect(valid_sub_evaluator.errors.messages)
-          .to eq(q1: [], q2: [], q3: [], q4: [], q5: [], q6: [], q7: [], q8: [],
-                 q9: [], q10: [])
+          .to eq({})
       end
 
       it 'has a value outside the expected range' do
         expect(wrong_range_sub_evaluator.valid?).to be_falsey
-        expect(wrong_range_sub_evaluator.errors[:q7]).to eq(['range error'])
+        expect(wrong_range_sub_evaluator.errors[:q7])
+          .to eq(['is not included in the list'])
       end
 
       it 'receives a disallowed key' do
         expect(excess_sub_evaluator.valid?).to be_falsey
-        expect(excess_sub_evaluator.errors[:q11]).to eq(['invalid key'])
+        expect(excess_sub_evaluator.errors[:q11]).to eq(['forbidden key'])
       end
 
       it 'receives a value of the wrong type' do
         expect(wrong_type_sub_evaluator.valid?).to be_falsey
-        expect(wrong_type_sub_evaluator.errors[:q3]).to eq(['type error'])
+        expect(wrong_type_sub_evaluator.errors[:q3])
+          .to eq(['is not included in the list'])
       end
     end
 
@@ -97,24 +100,24 @@ RSpec.describe PHQ9Evaluator do
 
       it 'receives valid responses' do
         expect(valid_pen_evaluator.valid?).to be_truthy
-        expect(valid_pen_evaluator.errors.messages)
-          .to eq(q1: [], q2: [], q3: [], q4: [], q5: [], q6: [], q7: [], q8: [],
-                 q9: [], q10: [])
+        expect(valid_pen_evaluator.errors.messages).to eq({})
       end
 
       it 'has a value outside the expected range' do
         expect(wrong_range_pen_evaluator.valid?).to be_falsey
-        expect(wrong_range_pen_evaluator.errors[:q7]).to eq(['range error'])
+        expect(wrong_range_pen_evaluator.errors[:q7])
+          .to eq(['is not included in the list'])
       end
 
       it 'receives a disallowed key' do
         expect(excess_pen_evaluator.valid?).to be_falsey
-        expect(excess_pen_evaluator.errors[:q11]).to eq(['invalid key'])
+        expect(excess_pen_evaluator.errors[:q11]).to eq(['forbidden key'])
       end
 
       it 'receives a value of the wrong type' do
         expect(wrong_type_pen_evaluator.valid?).to be_falsey
-        expect(wrong_type_pen_evaluator.errors[:q3]).to eq(['type error'])
+        expect(wrong_type_pen_evaluator.errors[:q3])
+          .to eq(['is not included in the list'])
       end
     end
   end
@@ -138,7 +141,7 @@ RSpec.describe PHQ9Evaluator do
       context 'pending' do
         it 'has responses that add to 14' do
           expect { valid_pen_evaluator.score_phq9 }
-            .to raise_error('response is still pending')
+            .to raise_error(RuntimeError)
         end
       end
     end
@@ -153,23 +156,43 @@ RSpec.describe PHQ9Evaluator do
       context 'pending' do
         it 'has responses to the first 2 questions that add to 4' do
           expect { valid_pen_evaluator.score_phq2 }
-            .to raise_error('response is still pending')
+            .to raise_error(RuntimeError)
         end
       end
     end
 
     describe 'score' do
       context 'submitted' do
-        it 'returns PHQ9 score when not instructed to return PHQ2' do
+        it 'receives valid responses and is not instructed to return PHQ2' do
           expect(valid_sub_evaluator.score).to eq(14)
+        end
+      end
+
+      context 'pending' do
+        it 'receives a valid response hash, but is pending' do
+          expect { valid_pen_evaluator.score }
+            .to raise_error(RuntimeError)
         end
       end
     end
   end
 
   describe 'suicidal ideation' do
-    it 'returns a suicidal ideation score' do
-      expect(valid_sub_evaluator.suic_ideation_score).to eq(2)
+    context 'submitted' do
+      it 'receives a valid response hash' do
+        expect(valid_sub_evaluator.suic_ideation_score).to eq(2)
+      end
+    end
+
+    context 'pending' do
+      it 'receives a valid response hash and q9 is answered' do
+        expect(inc_pen_evaluator.suic_ideation_score).to eq(2)
+      end
+
+      it 'receives a valid response hash but q9 is not answered' do
+        expect { inc_pen_noq9_evaluator.suic_ideation_score }
+          .to raise_error(RuntimeError)
+      end
     end
   end
 
