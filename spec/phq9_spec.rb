@@ -4,7 +4,9 @@ require 'spec_helper'
 RSpec.describe PHQ9Evaluator do
   empty = {}
   inc = { q1: 2, q3: 3, q5: 0, q9: 2 }
-  inc = { q1: 2, q3: 3, q5: 0 }
+  inc_noq9 = { q1: 2, q3: 3, q5: 0 }
+  inc_all_but_impact = { q1: 2, q2: 2, q3: 3, q4: 2, q5: 0, q6: 2, q7: 1, q8: 0,
+                         q9: 2 }
   valid = { q1: 2, q2: 2, q3: 3, q4: 2, q5: 0, q6: 2, q7: 1, q8: 0, q9: 2,
             q10: 2 }
   wrong_range_sub = { q1: 2, q2: 2, q3: 3, q4: 2, q5: 0, q6: 2, q7: 4, q8: 0,
@@ -30,6 +32,9 @@ RSpec.describe PHQ9Evaluator do
   let(:inc_sub_evaluator) { PHQ9Evaluator.new(inc, :submitted) }
   let(:inc_pen_evaluator) { PHQ9Evaluator.new(inc, :pending) }
   let(:inc_pen_noq9_evaluator) { PHQ9Evaluator.new(inc_noq9, :pending) }
+  let(:inc_pen_noimp_evaluator) do
+    PHQ9Evaluator.new(inc_all_but_impact, :pending)
+  end
   let(:valid_sub_evaluator) { PHQ9Evaluator.new(valid, :submitted) }
   let(:valid_pen_evaluator) { PHQ9Evaluator.new(valid, :pending) }
   let(:wrong_range_sub_evaluator) do
@@ -197,12 +202,25 @@ RSpec.describe PHQ9Evaluator do
   end
 
   describe 'phq2_positive?' do
-    it 'has a high phq2' do
-      expect(valid_sub_evaluator.phq2_positive?).to be_truthy
+    context 'submitted' do
+      it 'has a high phq2' do
+        expect(valid_sub_evaluator.phq2_positive?).to be_truthy
+      end
+
+      it 'has a low phq2' do
+        expect(none_sub_evaluator.phq2_positive?).to be_falsey
+      end
     end
 
-    it 'has a low phq2' do
-      expect(none_sub_evaluator.phq2_positive?).to be_falsey
+    context 'pending' do
+      it 'answers 1 and 2 add to at least 3' do
+        expect(valid_pen_evaluator.phq2_positive?).to be_truthy
+      end
+
+      it 'is missing question 2' do
+        expect { inc_pen_evaluator.phq2_positive? }
+          .to raise_error(RuntimeError)
+      end
     end
   end
 
@@ -217,81 +235,159 @@ RSpec.describe PHQ9Evaluator do
   end
 
   describe 'pretty_depressed?' do
-    it 'receives pretty depressed responses' do
-      expect(valid_sub_evaluator.pretty_depressed?).to be_truthy
+    context 'submitted' do
+      it 'receives pretty depressed responses' do
+        expect(valid_sub_evaluator.pretty_depressed?).to be_truthy
+      end
+
+      it 'receives less than pretty depressed responses' do
+        expect(mild_sub_evaluator.pretty_depressed?).to be_falsey
+      end
     end
 
-    it 'receives less than pretty depressed responses' do
-      expect(mild_sub_evaluator.pretty_depressed?).to be_falsey
+    context 'pending' do
+      it 'receives pretty depressed hash with first nine questions' do
+        expect(inc_pen_noimp_evaluator.pretty_depressed?).to be_truthy
+      end
+
+      it 'receives a hash with missing responses from first 9 questions' do
+        expect { inc_pen_evaluator.pretty_depressed? }
+          .to raise_error(RuntimeError)
+      end
     end
   end
 
   describe 'impact?' do
-    it 'receives impacted responses' do
-      expect(valid_sub_evaluator.impact?).to be_truthy
+    context 'submitted' do
+      it 'receives impacted responses' do
+        expect(valid_sub_evaluator.impact?).to be_truthy
+      end
+
+      it 'receives no impact responses' do
+        expect(none_sub_evaluator.impact?).to be_falsey
+      end
     end
 
-    it 'receives no impact responses' do
-      expect(none_sub_evaluator.impact?).to be_falsey
+    context 'pending' do
+      it 'receives impacted responses' do
+        expect(valid_pen_evaluator.impact?).to be_truthy
+      end
+
+      it 'receives a hash missing question 10' do
+        expect { inc_pen_noimp_evaluator.impact? }.to raise_error(RuntimeError)
+      end
     end
   end
 
   describe 'result' do
-    it 'receives results that indicate substantial depression plus impact' do
-      expect(valid_sub_evaluator.result).to be_truthy
+    context 'submitted' do
+      it 'receives results that indicate substantial depression plus impact' do
+        expect(valid_sub_evaluator.result).to be_truthy
+      end
+
+      it 'receives results that indicate mild depression' do
+        expect(mild_sub_evaluator.result).to be_falsey
+      end
     end
 
-    it 'receives results that indicate mild depression' do
-      expect(mild_sub_evaluator.result).to be_falsey
+    context 'pending' do
+      it 'receives incomplete results' do
+        expect { inc_pen_noimp_evaluator.result }.to raise_error(RuntimeError)
+      end
+
+      it 'receives complete results' do
+        expect { valid_pen_evaluator.result }.to raise_error(RuntimeError)
+      end
     end
   end
 
   describe 'answers' do
-    it 'is a valid PHQ-9' do
-      expect(valid_sub_evaluator.answers).to eq([2, 2, 3, 2, 0, 2, 1, 0, 2, 2])
+    context 'submitted' do
+      it 'is a valid PHQ-9' do
+        expect(valid_sub_evaluator.answers)
+          .to eq([2, 2, 3, 2, 0, 2, 1, 0, 2, 2])
+      end
+    end
+
+    context 'pending' do
+      it 'is a valid PHQ-9' do
+        expect { valid_pen_evaluator.answers }.to raise_error(RuntimeError)
+      end
     end
   end
 
   describe 'positive?' do
-    it 'receives results that do not indicate depression' do
-      expect(none_sub_evaluator.positive?).to be_falsey
+    context 'submitted' do
+      it 'receives results that do not indicate depression' do
+        expect(none_sub_evaluator.positive?).to be_falsey
+      end
+
+      it 'receives results that indicate at least mild depression' do
+        expect(mild_sub_evaluator.positive?).to be_truthy
+      end
     end
 
-    it 'receives results that indicate at least mild depression' do
-      expect(mild_sub_evaluator.positive?).to be_truthy
+    context 'pending' do
+      it 'receives results that indicate at least mild depression' do
+        expect { mild_pen_evaluator.positive? }.to raise_error(RuntimeError)
+      end
     end
   end
 
   describe 'eligible_for_spring_assessment?' do
-    it 'receives results to mild for spring assessment' do
-      expect(mild_sub_evaluator.eligible_for_spring_assessment?).to be_falsey
+    context 'submitted' do
+      it 'receives results too mild for spring assessment' do
+        expect(mild_sub_evaluator.eligible_for_spring_assessment?).to be_falsey
+      end
+
+      it 'receives results severe enough for spring assessment' do
+        expect(valid_sub_evaluator.eligible_for_spring_assessment?).to be_truthy
+      end
     end
 
-    it 'receives results severe enough for spring assessment' do
-      expect(valid_sub_evaluator.eligible_for_spring_assessment?).to be_truthy
+    context 'pending' do
+      it 'receives results severe enough for spring assessment' do
+        expect { valid_pen_evaluator.eligible_for_spring_assessment? }
+          .to raise_error(RuntimeError)
+      end
     end
   end
 
   describe 'acuity and severity' do
-    it 'receives results with no depression' do
-      expect(none_sub_evaluator.severity).to eq('(minimal)')
-      expect(none_sub_evaluator.acuity).to eq('none')
+    context 'submitted' do
+      it 'receives results with no depression' do
+        expect(none_sub_evaluator.severity).to eq('(minimal)')
+        expect(none_sub_evaluator.acuity).to eq('none')
+      end
+
+      it 'receives results with mild depression' do
+        expect(mild_sub_evaluator.severity).to eq('(mild)')
+        expect(mild_sub_evaluator.acuity).to eq('mild')
+      end
+
+      it 'receives results with moderate depression' do
+        expect(valid_sub_evaluator.severity).to eq('(moderate)')
+        expect(valid_sub_evaluator.acuity).to eq('moderate')
+      end
+
+      it 'receives results with moderately severe depression' do
+        expect(mod_severe_sub_evaluator.severity).to eq('(moderately severe)')
+        expect(mod_severe_sub_evaluator.acuity).to eq('moderately severe')
+      end
+
+      it 'receives results with severe depression' do
+        expect(severe_sub_evaluator.severity).to eq('(severe)')
+        expect(severe_sub_evaluator.acuity).to eq('severe')
+      end
     end
-    it 'receives results with mild depression' do
-      expect(mild_sub_evaluator.severity).to eq('(mild)')
-      expect(mild_sub_evaluator.acuity).to eq('mild')
-    end
-    it 'receives results with moderate depression' do
-      expect(valid_sub_evaluator.severity).to eq('(moderate)')
-      expect(valid_sub_evaluator.acuity).to eq('moderate')
-    end
-    it 'receives results with moderately severe depression' do
-      expect(mod_severe_sub_evaluator.severity).to eq('(moderately severe)')
-      expect(mod_severe_sub_evaluator.acuity).to eq('moderately severe')
-    end
-    it 'receives results with severe depression' do
-      expect(severe_sub_evaluator.severity).to eq('(severe)')
-      expect(severe_sub_evaluator.acuity).to eq('severe')
+
+    context 'pending' do
+      it 'receives results with mild depression' do
+        expect { mild_pen_evaluator.severity }
+          .to raise_error(RuntimeError)
+        expect { mild_pen_evaluator.acuity }
+          .to raise_error(RuntimeError)
+      end
     end
   end
 end

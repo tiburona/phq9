@@ -70,7 +70,7 @@ class PHQ9Evaluator
   end
 
   def suic_ideation_score
-    raise_unless_valid_keys!
+    raise_unless_valid_keys!([:q9])
     responses[:q9]
   end
 
@@ -81,26 +81,31 @@ class PHQ9Evaluator
   def phq2?; end
 
   def phq2_positive?
-    raise_unless_valid_keys!
+    raise_unless_valid_keys!(%i[q1 q2])
     responses[:q1] + responses[:q2] >= 3
   end
 
   def somewhat_depressed?
+    raise_unless_valid_keys!(%i[q1 q2])
     responses[:q1] > 1 || responses[:q2] > 1
   end
 
   def pretty_depressed?
-    (%i[q1 q2 q3 q4 q5 q6 q7 q8]
+    keys = %i[q1 q2 q3 q4 q5 q6 q7 q8 q9]
+    raise_unless_valid_keys!(keys)
+    (keys
       .map { |key| responses[key] }
       .count { |key| key == 2 || key == 3 } +
       (responses[:q9] > 0 ? 1 : 0)) >= 5
   end
 
   def impact?
+    raise_unless_valid_keys!([:q10])
     responses[:q10] > 0
   end
 
   def result
+    raise_unless_submitted_and_valid!
     somewhat_depressed? && pretty_depressed? && impact? unless
       phq2? && !phq2_positive
   end
@@ -114,6 +119,7 @@ class PHQ9Evaluator
   end
 
   def severity
+    raise_unless_submitted_and_valid!
     return '(minimal)' if score < 5
     return '(mild)' if score < 10
     return '(moderate)' if score < 15
@@ -122,6 +128,7 @@ class PHQ9Evaluator
   end
 
   def answers
+    raise_unless_submitted_and_valid!
     unless phq2? && !phq2positive?
       return %i[q1 q2 q3 q4 q5 q6 q7 q8 q9 q10].map { |q| responses[q] }
     end
