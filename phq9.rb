@@ -48,7 +48,6 @@ class PHQ9Evaluator
 
   # note: AFAICT this is only being used in a haml screenings page
   # is this something we're currently using ?
-
   def score_phq2
     raise_unless_submitted_and_valid!
     responses[:q1] + responses[:q2]
