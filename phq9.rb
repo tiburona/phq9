@@ -136,18 +136,16 @@ class PHQ9Evaluator
 
   private
 
-  def raise_unless_valid!
-    raise 'invalid' unless valid?
-  end
-
   def raise_unless_submitted_and_valid!
-    raise 'invalid or pending responses' unless status == :submitted && valid?
+    raise InvalidResponseError unless valid?
+    raise ResponseNotReadyError unless status == :submitted
   end
 
   def raise_unless_valid_keys!(keys)
     keys.each do |key|
-      raise 'invalid key' unless [0, 1, 2, 3].include? @responses[key]
+      raise InvalidResponseError, 'invalid key' unless [0, 1, 2, 3]
+                                                       .include? @responses[key]
     end
-    raise 'invalid responses' unless valid?
+    raise InvalidResponseError, 'invalid responses' unless valid?
   end
 end

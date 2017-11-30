@@ -1,4 +1,5 @@
 require_relative '../phq9'
+require_relative '../response_validator'
 require 'spec_helper'
 
 RSpec.describe PHQ9Evaluator do
@@ -7,13 +8,15 @@ RSpec.describe PHQ9Evaluator do
 
   context 'with an empty response hash' do
     let(:responses) { {} }
-    context 'submitted' do
-      let(:status) { :submitted }
-      specify { expect(evaluator).not_to be_valid }
-    end
+    errors = ["can't be blank", 'is not included in the list']
     context 'pending' do
       let(:status) { :pending }
       specify { expect(evaluator).to be_valid }
+    end
+    context 'submitted' do
+      let(:status) { :submitted }
+      specify { expect(evaluator).not_to be_valid }
+      specify { expect(evaluator_errors[:q1]).to eq(errors) }
     end
   end
 
@@ -21,36 +24,25 @@ RSpec.describe PHQ9Evaluator do
     hash = { q1: 2, q3: 3, q4: 2, q5: 0, q6: 2, q7: 1, q8: 0, q9: 2, q10: 2,
              q11: 2 }
     let(:responses) { hash }
-    context 'submitted' do
-      let(:status) { :submitted }
-      specify { expect(evaluator).not_to be_valid }
+    context 'pending' do
+      let(:status) { :pending }
       specify { expect(evaluator_errors[:q11]).to eq(['forbidden key']) }
       specify { expect(evaluator.abbr).to eq('PHQ-9') }
       specify { expect(evaluator.disorder).to eq('Depression') }
       specify { expect(evaluator.max_score).to eq(27) }
     end
-    context 'pending' do
-      let(:status) { :pending }
-      specify { expect(evaluator).not_to be_valid }
+    context 'submitted' do
+      let(:status) { :submitted }
       specify { expect(evaluator_errors[:q11]).to eq(['forbidden key']) }
-      specify { expect(evaluator.abbr).to eq('PHQ-9') }
-      specify { expect(evaluator.disorder).to eq('Depression') }
-      specify { expect(evaluator.max_score).to eq(27) }
     end
   end
 
   context 'with a value outside accepted range' do
     hash = { q1: 2, q3: 3, q4: 2, q5: 0, q6: 2, q7: 4, q8: 0, q9: 2, q10: 2 }
     let(:responses) { hash }
-    errors = ['is not included in the list']
-    context 'submitted' do
-      let(:status) { :submitted }
-      specify { expect(evaluator).not_to be_valid }
-      specify { expect(evaluator_errors[:q7]).to eq(errors) }
-    end
     context 'pending' do
-      let(:status) { :submitted }
-      specify { expect(evaluator).not_to be_valid }
+      let(:status) { :pending }
+      errors = ['is not included in the list']
       specify { expect(evaluator_errors[:q7]).to eq(errors) }
     end
   end
@@ -58,33 +50,23 @@ RSpec.describe PHQ9Evaluator do
   context 'with a set of responses missing q2' do
     hash = { q1: 2, q3: 3, q4: 2, q5: 0, q6: 2, q7: 1, q8: 0, q9: 2, q10: 2 }
     let(:responses) { hash }
-    errors = ["can't be blank", 'is not included in the list']
-    context 'submitted' do
-      let(:status) { :submitted }
-      specify { expect(evaluator).not_to be_valid }
-      specify { expect { evaluator.result }.to raise_error(RuntimeError) }
-      specify { expect { evaluator.answers }.to raise_error(RuntimeError) }
-      specify { expect { evaluator.acuity }.to raise_error(RuntimeError) }
-      specify { expect { evaluator.severity }.to raise_error(RuntimeError) }
-      specify { expect { evaluator.score }.to raise_error(RuntimeError) }
-      specify { expect { evaluator.score_phq2 }.to raise_error(RuntimeError) }
-      specify { expect { evaluator.score_phq9 }.to raise_error(RuntimeError) }
-      specify { expect(evaluator_errors[:q2]).to eq(errors) }
-    end
     context 'pending' do
       let(:status) { :pending }
-      specify { expect(evaluator).to be_valid }
-      specify { expect { evaluator.result }.to raise_error(RuntimeError) }
-      specify { expect { evaluator.answers }.to raise_error(RuntimeError) }
-      specify { expect { evaluator.acuity }.to raise_error(RuntimeError) }
-      specify { expect { evaluator.severity }.to raise_error(RuntimeError) }
-      specify { expect { evaluator.score }.to raise_error(RuntimeError) }
-      specify { expect { evaluator.score_phq2 }.to raise_error(RuntimeError) }
-      specify { expect { evaluator.score_phq9 }.to raise_error(RuntimeError) }
-      specify { expect { evaluator.answers }.to raise_error(RuntimeError) }
       it '' do
-        expect { evaluator.phq2_positive? }.to raise_error(RuntimeError)
-        expect { evaluator.somewhat_depressed? }.to raise_error(RuntimeError)
+        expect { evaluator.score }.to raise_error(ResponseNotReadyError)
+        expect { evaluator.score_phq2 }.to raise_error(ResponseNotReadyError)
+        expect { evaluator.score_phq9 }.to raise_error(ResponseNotReadyError)
+        expect { evaluator.phq2_positive? }.to raise_error(InvalidResponseError)
+        expect { evaluator.somewhat_depressed? }
+          .to raise_error(InvalidResponseError)
+      end
+    end
+    context 'submitted' do
+      let(:status) { :submitted }
+      it '' do
+        expect { evaluator.score }.to raise_error(InvalidResponseError)
+        expect { evaluator.score_phq2 }.to raise_error(InvalidResponseError)
+        expect { evaluator.score_phq9 }.to raise_error(InvalidResponseError)
       end
     end
   end
@@ -94,20 +76,19 @@ RSpec.describe PHQ9Evaluator do
     let(:responses) { hash }
     context 'pending' do
       let(:status) { :pending }
-      specify { expect(evaluator.somewhat_depressed?).to be_truthy }
       specify { expect(evaluator.impact?).to be_truthy }
+      specify { expect(evaluator.somewhat_depressed?).to be_truthy }
       it '' do
-        expect { evaluator.suic_ideation_score }.to raise_error(RuntimeError)
-        expect { evaluator.pretty_depressed? }.to raise_error(RuntimeError)
+        expect { evaluator.suic_ideation_score }
+          .to raise_error(InvalidResponseError)
+        expect { evaluator.pretty_depressed? }
+          .to raise_error(InvalidResponseError)
       end
     end
     context 'submitted' do
       let(:status) { :submitted }
-      specify { expect { evaluator.impact? }.to raise_error(RuntimeError) }
       it '' do
-        expect { evaluator.somewhat_depressed? }.to raise_error(RuntimeError)
-        expect { evaluator.suic_ideation_score }.to raise_error(RuntimeError)
-        expect { evaluator.pretty_depressed? }.to raise_error(RuntimeError)
+        expect { evaluator.impact? }.to raise_error(InvalidResponseError)
       end
     end
   end
@@ -117,7 +98,9 @@ RSpec.describe PHQ9Evaluator do
     let(:responses) { hash }
     context 'pending' do
       let(:status) { :pending }
-      specify { expect { evaluator.impact? }.to raise_error(RuntimeError) }
+      it '' do
+        expect { evaluator.impact? }.to raise_error(InvalidResponseError)
+      end
       specify { expect(evaluator.pretty_depressed?).to be_truthy }
       specify { expect(evaluator.suic_ideation_score).to eq(2) }
     end
@@ -126,8 +109,10 @@ RSpec.describe PHQ9Evaluator do
       errors = ["can't be blank", 'is not included in the list']
       specify { expect(evaluator_errors[:q10]).to eq(errors) }
       it '' do
-        expect { evaluator.pretty_depressed? }.to raise_error(RuntimeError)
-        expect { evaluator.suic_ideation_score }.to raise_error(RuntimeError)
+        expect { evaluator.pretty_depressed? }
+          .to raise_error(InvalidResponseError)
+        expect { evaluator.suic_ideation_score }
+          .to raise_error(InvalidResponseError)
       end
     end
   end
@@ -138,16 +123,13 @@ RSpec.describe PHQ9Evaluator do
     let(:responses) { hash }
     context 'pending' do
       let(:status) { :pending }
-      specify { expect(evaluator).to be_valid }
-      specify { expect { evaluator.score }.to raise_error(RuntimeError) }
-      specify { expect { evaluator.score_phq9 }.to raise_error(RuntimeError) }
-      specify { expect { evaluator.score_phq2 }.to raise_error(RuntimeError) }
-      specify { expect { evaluator.positive? }.to raise_error(RuntimeError) }
-      specify { expect { evaluator.result }.to raise_error(RuntimeError) }
-      specify { expect { evaluator.answers }.to raise_error(RuntimeError) }
-      specify { expect { evaluator.acuity }.to raise_error(RuntimeError) }
-      specify { expect { evaluator.severity }.to raise_error(RuntimeError) }
+      it '' do
+        expect { evaluator.score }.to raise_error(ResponseNotReadyError)
+        expect { evaluator.score_phq9 }.to raise_error(ResponseNotReadyError)
+        expect { evaluator.score_phq2 }.to raise_error(ResponseNotReadyError)
+      end
       specify { expect(evaluator.phq2_positive?).to be_falsey }
+      specify { expect(evaluator.impact?).to be_falsey }
       specify { expect(evaluator.somewhat_depressed?).to be_falsey }
     end
     context 'submitted' do
@@ -155,10 +137,7 @@ RSpec.describe PHQ9Evaluator do
       specify { expect(evaluator).to be_valid }
       specify { expect(evaluator.acuity).to eq('none') }
       specify { expect(evaluator.severity).to eq('(minimal)') }
-      specify { expect(evaluator.phq2_positive?).to be_falsey }
-      specify { expect(evaluator.somewhat_depressed?).to be_falsey }
       specify { expect(evaluator.positive?).to be_falsey }
-      specify { expect(evaluator.impact?).to be_falsey }
       specify { expect(evaluator.score).to eq(3) }
       specify { expect(evaluator.score_phq9).to eq(3) }
       specify { expect(evaluator.score_phq2).to eq(1) }
@@ -174,20 +153,14 @@ RSpec.describe PHQ9Evaluator do
       let(:status) { :pending }
       specify { expect(evaluator.phq2_positive?).to be_truthy }
       specify { expect(evaluator.impact?).to be_truthy }
-      it '' do
-        expect { evaluator.eligible_for_spring_assessment? }
-          .to raise_error(RuntimeError)
-      end
+      specify { expect(evaluator.somewhat_depressed?).to be_truthy }
+      specify { expect(evaluator.pretty_depressed?).to be_falsey }
     end
     context 'submitted' do
       let(:status) { :submitted }
       specify { expect(evaluator.acuity).to eq('mild') }
       specify { expect(evaluator.severity).to eq('(mild)') }
-      specify { expect(evaluator.impact?).to be_truthy }
-      specify { expect(evaluator.phq2_positive?).to be_truthy }
-      specify { expect(evaluator.somewhat_depressed?).to be_truthy }
       specify { expect(evaluator.positive?).to be_truthy }
-      specify { expect(evaluator.pretty_depressed?).to be_falsey }
       specify { expect(evaluator.result).to be_falsey }
       specify { expect(evaluator.eligible_for_spring_assessment?).to be_falsey }
     end
@@ -197,10 +170,7 @@ RSpec.describe PHQ9Evaluator do
     hash = { q1: 2, q2: 2, q3: 3, q4: 2, q5: 0, q6: 2, q7: 1, q8: 0, q9: 2,
              q10: 2 }
     let(:responses) { hash }
-    context 'pending' do
-      let(:status) { :pending }
-      specify { expect(evaluator.pretty_depressed?).to be_truthy }
-    end
+
     context 'submitted' do
       let(:status) { :submitted }
       specify { expect(evaluator.acuity).to eq('moderate') }

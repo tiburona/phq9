@@ -9,3 +9,9 @@ class ResponseValidator < ActiveModel::Validator
     end
   end
 end
+
+class ResponseNotReadyError < StandardError
+end
+
+class InvalidResponseError < StandardError
+end
