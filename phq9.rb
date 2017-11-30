@@ -80,32 +80,31 @@ class PHQ9Evaluator
   def phq2?; end
 
   def phq2_positive?
-    raise_unless_valid_keys!(%i[q1 q2])
+    raise_unless_submitted_and_valid!
     responses[:q1] + responses[:q2] >= 3
   end
 
   def somewhat_depressed?
-    raise_unless_valid_keys!(%i[q1 q2])
+    raise_unless_submitted_and_valid!
     responses[:q1] > 1 || responses[:q2] > 1
   end
 
   def pretty_depressed?
-    keys = %i[q1 q2 q3 q4 q5 q6 q7 q8 q9]
-    raise_unless_valid_keys!(keys)
-    (keys
+    raise_unless_submitted_and_valid!
+    (%i[q1 q2 q3 q4 q5 q6 q7 q8 q9]
       .map { |key| responses[key] }
       .count { |key| key == 2 || key == 3 } +
       (responses[:q9] > 0 ? 1 : 0)) >= 5
   end
 
-  def impact?
-    raise_unless_valid_keys!([:q10])
+  def impacted?
+    raise_unless_submitted_and_valid!
     responses[:q10] > 0
   end
 
   def result
     raise_unless_submitted_and_valid!
-    somewhat_depressed? && pretty_depressed? && impact? unless
+    somewhat_depressed? && pretty_depressed? && impacted? unless
       phq2? && !phq2_positive
   end
 
