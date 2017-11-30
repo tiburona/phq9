@@ -1,5 +1,6 @@
 require_relative '../phq9'
-require_relative '../response_validator'
+require_relative '../custom_validation_errors'
+require 'active_model'
 require 'spec_helper'
 
 RSpec.describe PHQ9Evaluator do

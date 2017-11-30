@@ -1,4 +1,5 @@
-require_relative 'response_validator'
+require_relative 'custom_validation_errors'
+require 'active_model'
 
 # a class to evaluate responses to the PHQ-9
 class PHQ9Evaluator
