@@ -5,7 +5,7 @@ class PHQ9Evaluator
   include ActiveModel::Validations
   attr_reader :status, :responses, :q1, :q2, :q3, :q4, :q5, :q6, :q7, :q8, :q9,
               :q10
-  validates_with ResponseValidator
+  validate :check_for_invalid_keys
   validates :q1, :q2, :q3, :q4, :q5, :q6, :q7, :q8, :q9, :q10,
             presence: { unless: :pending? }
   validates :q1, :q2, :q3, :q4, :q5, :q6, :q7, :q8, :q9, :q10,
@@ -13,9 +13,12 @@ class PHQ9Evaluator
   validates :q1, :q2, :q3, :q4, :q5, :q6, :q7, :q8, :q9, :q10,
             inclusion: { in: [0, 1, 2, 3, nil], if: :pending? }
 
+  ANSWER_KEYS = %i[q1 q2 q3 q4 q5 q6 q7 q8 q9 q10].freeze
+
   def initialize(responses, status)
-    @responses = responses
-    responses.each do |key, val|
+    @responses = responses.select { |k, _v| ANSWER_KEYS.include? k }
+    @invalid_keys = responses.reject { |k, _v| ANSWER_KEYS.include? k }
+    @responses.each do |key, val|
       var_name = "@#{key}"
       instance_variable_set(var_name, val)
     end
@@ -43,7 +46,9 @@ class PHQ9Evaluator
 
   def score_phq9
     raise_unless_submitted_and_valid!
-    responses.values.reduce(:+) - responses[:q10]
+    @responses.select { |k, _v| %i[q1 q2 q3 q4 q5 q6 q7 q8 q9].include? k }
+              .values
+              .reduce(:+)
   end
 
   # note: AFAICT this is only being used in a haml screenings page
@@ -127,13 +132,17 @@ class PHQ9Evaluator
 
   def answers
     raise_unless_submitted_and_valid!
-    unless phq2? && !phq2positive?
-      return %i[q1 q2 q3 q4 q5 q6 q7 q8 q9 q10].map { |q| responses[q] }
-    end
+    return ANSWER_KEYS.map { |q| responses[q] } unless phq2? && !phq2positive?
     %i[q1 q2].map { |q| responses[q] }
   end
 
   private
+
+  def check_for_invalid_keys
+    @invalid_keys.each_key do |k|
+      @errors.messages[k] = ['invalid key']
+    end
+  end
 
   def raise_unless_submitted_and_valid!
     raise InvalidResponseError unless valid?

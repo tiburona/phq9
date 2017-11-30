@@ -26,11 +26,8 @@ RSpec.describe PHQ9Evaluator do
     let(:responses) { hash }
     context 'pending' do
       let(:status) { :pending }
-      specify { expect(subject_errors[:q11]).to eq(['forbidden key']) }
-    end
-    context 'submitted' do
-      let(:status) { :submitted }
-      specify { expect(subject_errors[:q11]).to eq(['forbidden key']) }
+      specify { is_expected.not_to be_valid }
+      specify { expect(subject_errors[:q11]).to eq(['invalid key']) }
     end
   end
 
