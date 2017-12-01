@@ -10,6 +10,10 @@ RSpec.describe AlcoholScreeningEvaluator do
   context 'with an empty response hash' do
     let(:responses) { {} }
     errors = ["can't be blank", 'is not included in the list']
+    context 'requested' do
+      let(:status) { :requested }
+      specify { is_expected.to be_valid }
+    end
     context 'started' do
       let(:status) { :started }
       specify { is_expected.to be_valid }
