@@ -10,14 +10,22 @@ RSpec.describe PHQ9Evaluator do
   context 'with an empty response hash' do
     let(:responses) { {} }
     errors = ["can't be blank", 'is not included in the list']
-    context 'pending' do
-      let(:status) { :pending }
+    context 'requested' do
+      let(:status) { :requested }
       specify { is_expected.to be_valid }
     end
-    context 'submitted' do
-      let(:status) { :submitted }
+    context 'started' do
+      let(:status) { :started }
+      specify { is_expected.to be_valid }
+    end
+    context 'finished' do
+      let(:status) { :finished }
       specify { is_expected.not_to be_valid }
       specify { expect(subject_errors[:q1]).to eq(errors) }
+    end
+    context 'canceled' do
+      let(:status) { :canceled }
+      specify { is_expected.to be_valid }
     end
   end
 
@@ -25,8 +33,13 @@ RSpec.describe PHQ9Evaluator do
     hash = { q1: 2, q3: 3, q4: 2, q5: 0, q6: 2, q7: 1, q8: 0, q9: 2, q10: 2,
              q11: 2 }
     let(:responses) { hash }
-    context 'pending' do
-      let(:status) { :pending }
+    context 'started' do
+      let(:status) { :started }
+      specify { is_expected.not_to be_valid }
+      specify { expect(subject_errors[:q11]).to eq(['invalid key']) }
+    end
+    context 'canceled' do
+      let(:status) { :started }
       specify { is_expected.not_to be_valid }
       specify { expect(subject_errors[:q11]).to eq(['invalid key']) }
     end
@@ -35,8 +48,8 @@ RSpec.describe PHQ9Evaluator do
   context 'with a value outside accepted range' do
     hash = { q1: 2, q3: 3, q4: 2, q5: 0, q6: 2, q7: 4, q8: 0, q9: 2, q10: 2 }
     let(:responses) { hash }
-    context 'pending' do
-      let(:status) { :pending }
+    context 'started' do
+      let(:status) { :started }
       errors = ['is not included in the list']
       specify { expect(subject_errors[:q7]).to eq(errors) }
     end
@@ -45,8 +58,8 @@ RSpec.describe PHQ9Evaluator do
   context 'with a set of responses missing q9' do
     hash = { q1: 2, q2: 2, q3: 3, q4: 2, q5: 0, q6: 2, q7: 1, q8: 0, q10: 2 }
     let(:responses) { hash }
-    context 'pending' do
-      let(:status) { :pending }
+    context 'started' do
+      let(:status) { :started }
       it 'raises invalid errors on methods that require q9' do
         expect { subject.suic_ideation_score }
           .to raise_error(InvalidResponseError)
@@ -57,8 +70,8 @@ RSpec.describe PHQ9Evaluator do
   context 'with a missing response (but not q9)' do
     hash = { q1: 2, q2: 2, q3: 3, q4: 2, q5: 0, q6: 2, q7: 1, q8: 0, q9: 2 }
     let(:responses) { hash }
-    context 'pending' do
-      let(:status) { :pending }
+    context 'started' do
+      let(:status) { :started }
       it 'returns a suicidal ideation score even for incomplete responses' do
         expect(subject.suic_ideation_score).to eq(2)
       end
@@ -69,8 +82,12 @@ RSpec.describe PHQ9Evaluator do
     hash = { q1: 0, q2: 1, q3: 0, q4: 1, q5: 0, q6: 0, q7: 1, q8: 0, q9: 0,
              q10: 0 }
     let(:responses) { hash }
-    context 'pending' do
-      let(:status) { :pending }
+    context 'requested' do
+      let(:status) { :requested }
+      specify { is_expected.not_to be_valid }
+    end
+    context 'started' do
+      let(:status) { :started }
       specify { is_expected.to be_valid }
       it 'raises not ready errors on final score methods' do
         expect { subject.score }.to raise_error(ResponseNotReadyError)
@@ -78,8 +95,8 @@ RSpec.describe PHQ9Evaluator do
         expect { subject.score_phq2 }.to raise_error(ResponseNotReadyError)
       end
     end
-    context 'submitted' do
-      let(:status) { :submitted }
+    context 'finished' do
+      let(:status) { :finished }
       specify { is_expected.to be_valid }
       specify { expect(subject.score).to eq(3) }
       specify { expect(subject.score_phq9).to eq(3) }
@@ -92,8 +109,8 @@ RSpec.describe PHQ9Evaluator do
     hash = { q1: 0, q2: 1, q3: 0, q4: 1, q5: 0, q6: 0, q7: 1, q8: 0, q9: 0,
              q10: 0 }
     let(:responses) { hash }
-    context 'submitted' do
-      let(:status) { :submitted }
+    context 'finished' do
+      let(:status) { :finished }
       specify { is_expected.not_to be_impacted }
       specify { is_expected.not_to be_positive }
       specify { is_expected.not_to be_phq2_positive }
@@ -106,8 +123,8 @@ RSpec.describe PHQ9Evaluator do
     hash = { q1: 1, q2: 2, q3: 1, q4: 1, q5: 1, q6: 0, q7: 1, q8: 0, q9: 0,
              q10: 1 }
     let(:responses) { hash }
-    context 'submitted' do
-      let(:status) { :submitted }
+    context 'finished' do
+      let(:status) { :finished }
       specify { expect(subject.acuity).to eq('mild') }
       specify { expect(subject.severity).to eq('(mild)') }
       specify { is_expected.to be_positive }
@@ -121,8 +138,8 @@ RSpec.describe PHQ9Evaluator do
     hash = { q1: 2, q2: 2, q3: 3, q4: 2, q5: 0, q6: 2, q7: 1, q8: 0, q9: 2,
              q10: 2 }
     let(:responses) { hash }
-    context 'submitted' do
-      let(:status) { :submitted }
+    context 'finished' do
+      let(:status) { :finished }
       specify { expect(subject.acuity).to eq('moderate') }
       specify { expect(subject.severity).to eq('(moderate)') }
       specify { is_expected.to be_pretty_depressed }
@@ -135,8 +152,8 @@ RSpec.describe PHQ9Evaluator do
     hash = { q1: 3, q2: 3, q3: 3, q4: 2, q5: 3, q6: 2, q7: 1, q8: 0, q9: 2,
              q10: 2 }
     let(:responses) { hash }
-    context 'submitted' do
-      let(:status) { :submitted }
+    context 'finished' do
+      let(:status) { :finished }
       specify { expect(subject.acuity).to eq('moderately severe') }
       specify { expect(subject.severity).to eq('(moderately severe)') }
     end
@@ -146,8 +163,8 @@ RSpec.describe PHQ9Evaluator do
     hash = { q1: 3, q2: 3, q3: 3, q4: 2, q5: 3, q6: 3, q7: 2, q8: 3, q9: 2,
              q10: 2 }
     let(:responses) { hash }
-    context 'submitted' do
-      let(:status) { :submitted }
+    context 'finished' do
+      let(:status) { :finished }
       specify { expect(subject.acuity).to eq('severe') }
       specify { expect(subject.severity).to eq('(severe)') }
     end
